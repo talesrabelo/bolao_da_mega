@@ -2,7 +2,11 @@ import streamlit as st
 import pandas as pd
 
 # Configuração da página
-st.set_page_config(page_title="Bolão Mega Sena", layout="wide", page_icon="🍀", layout="wide")
+st.set_page_config(
+    page_title="Bolão da Mega",
+    page_icon="🍀",  # Aqui mudamos a identidade da aba
+    layout="wide"
+)
 
 st.header("🍀 Painel de Acompanhamento do Bolão")
 
