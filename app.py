@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 
 # Configuração da página
-st.set_page_config(page_title="Bolão Mega Sena", layout="wide", page_icon="🎱")
+st.set_page_config(page_title="Bolão Mega Sena", layout="wide", page_icon="🍀", layout="wide")
 
-st.title("🎱 Painel de Acompanhamento do Bolão")
+st.header("🍀 Painel de Acompanhamento do Bolão")
 
 # --- FUNÇÃO DE CARREGAMENTO DE DADOS ---
 @st.cache_data
