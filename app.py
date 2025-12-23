@@ -25,7 +25,6 @@ def load_data():
         df_part_clean.columns = ["Participante", "Cotas"]
         df_part_clean.reset_index(drop=True, inplace=True)
         
-        # --- INTERVENÇÃO CRÍTICA ---
         # Garantir que a coluna 'Cotas' seja numérica para permitir cálculos de rateio
         df_part_clean["Cotas"] = pd.to_numeric(df_part_clean["Cotas"], errors='coerce').fillna(0)
         
@@ -56,24 +55,22 @@ if df_participantes is not None and df_jogos is not None:
     with tab1:
         st.header("Quadro de Cotistas e Estimativas")
         
-        # 1. Métricas Institucionais (Dados do Bolão)
+        # 1. Métricas Institucionais
         col_metric1, col_metric2 = st.columns(2)
         col_metric1.metric("Fundo de Reserva (Arrecadado)", f"R$ {total_acumulado:,.2f}")
         
-        # Cálculo do total de cotas existentes (Soma da coluna Cotas)
         total_cotas_geral = df_participantes["Cotas"].sum()
         col_metric2.metric("Total de Cotas Emitidas", int(total_cotas_geral))
         
         st.divider()
 
-        # 2. Mecanismo de Simulação de Ganhos (A pedido: Valor do Prêmio e Rateio)
+        # 2. Mecanismo de Simulação de Ganhos
         st.subheader("💰 Simulação de Rateio")
         st.info("Insira o valor do prêmio estimado para calcular o ganho por cota.")
         
         col_input, col_result = st.columns(2)
         
         with col_input:
-            # Campo para o usuário preencher o prêmio
             premio_estimado = st.number_input(
                 "Valor do Prêmio (R$)", 
                 min_value=0.0, 
@@ -83,7 +80,6 @@ if df_participantes is not None and df_jogos is not None:
             )
         
         with col_result:
-            # Cálculo do valor por cota
             if total_cotas_geral > 0:
                 valor_por_cota = premio_estimado / total_cotas_geral
                 st.metric("Valor Estimado por Cota", f"R$ {valor_por_cota:,.2f}")
@@ -92,11 +88,12 @@ if df_participantes is not None and df_jogos is not None:
 
         st.divider()
 
-        # 3. Mecanismo de Inquirição Individual (Pesquisa de Participante)
+        # 3. Mecanismo de Inquirição Individual (Pesquisa Ordenada)
         st.subheader("🕵️ Consulta Individual")
         
-        # Cria uma lista única de participantes para o selectbox (aumenta a eficiência da busca)
-        lista_nomes = df_participantes["Participante"].unique()
+        # --- ALTERAÇÃO AQUI: Ordenação da Lista ---
+        # O comando 'sorted' organiza a lista alfabeticamente antes de exibir
+        lista_nomes = sorted(df_participantes["Participante"].unique())
         
         col_busca, col_resultado_busca = st.columns(2)
         
@@ -105,9 +102,7 @@ if df_participantes is not None and df_jogos is not None:
             
         with col_resultado_busca:
             if nome_selecionado:
-                # Filtra o dataframe para encontrar o participante
                 dados_participante = df_participantes[df_participantes["Participante"] == nome_selecionado]
-                # Soma as cotas (caso o nome apareça mais de uma vez, embora o ideal seja aparecer uma vez com N cotas)
                 cotas_do_participante = dados_participante["Cotas"].sum()
                 
                 st.metric(
@@ -117,7 +112,8 @@ if df_participantes is not None and df_jogos is not None:
 
         st.divider()
         st.subheader("Lista Completa")
-        st.dataframe(df_participantes, use_container_width=True, hide_index=True)
+        # Também ordenamos o dataframe principal para exibição na tabela
+        st.dataframe(df_participantes.sort_values(by="Participante"), use_container_width=True, hide_index=True)
 
     # --- ABA 2: JOGOS ---
     with tab2:
