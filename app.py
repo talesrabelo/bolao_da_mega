@@ -119,6 +119,7 @@ if df_participantes is not None and df_jogos is not None:
     with tab2:
         st.header("Jogos Realizados")
         st.info("Abaixo estão listados todos os jogos registrados para este bolão.")
+        st.info("Os comprovantes dos jogos podem ser acessados no link: https://drive.google.com/drive/folders/1ItBEVLpSoxnKTpJ0xW-aW6Zecm-DzIQW?usp=drive_link")
         st.dataframe(df_jogos.style.format(precision=0, na_rep=""), use_container_width=True, hide_index=True)
 
     # --- ABA 3: CONFERÊNCIA ---
