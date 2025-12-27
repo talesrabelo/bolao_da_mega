@@ -10,38 +10,54 @@ st.set_page_config(
 
 st.header("🍀 Painel de Acompanhamento do Bolão")
 
-# --- FUNÇÃO DE CARREGAMENTO DE DADOS ---
-@st.cache_data
+# --- FUNÇÃO DE CARREGAMENTO DE DADOS (VIA URL GITHUB) ---
+@st.cache_data(ttl=60) # TTL=60 faz o cache expirar a cada 60 segundos (1 minuto)
 def load_data():
     try:
-        # Carregar Participantes
-        df_part = pd.read_excel("participantes.xlsx", header=None)
+        # URLs diretas do GitHub (Modo RAW)
+        # Isso garante que ele pegue o arquivo atualizado na nuvem, não o local antigo
+        url_participantes = "https://raw.githubusercontent.com/talesrabelo/bolao_da_mega/main/participantes.xlsx"
+        url_jogos = "https://raw.githubusercontent.com/talesrabelo/bolao_da_mega/main/jogos.xlsx"
+
+        # Carregar Participantes da URL
+        df_part = pd.read_excel(url_participantes, header=None)
         
         # Extrair valor total acumulado (arrecadado)
         valor_arrecadado = df_part.iloc[0, 1]
         
-        # Ajustar dataframe de participantes (removendo a linha do total)
+        # Ajustar dataframe de participantes
         df_part_clean = df_part.iloc[1:].copy()
         df_part_clean.columns = ["Participante", "Cotas"]
         df_part_clean.reset_index(drop=True, inplace=True)
         
-        # Garantir que a coluna 'Cotas' seja numérica para permitir cálculos de rateio
+        # Garantir numérico
         df_part_clean["Cotas"] = pd.to_numeric(df_part_clean["Cotas"], errors='coerce').fillna(0)
         
-        # Carregar Jogos
-        df_jogos = pd.read_excel("jogos.xlsx")
-        # Garante que as colunas de dezenas sejam numéricas e trata vazios
-        cols_dezenas = df_jogos.columns[1:] # Pula a primeira (ID)
+        # Carregar Jogos da URL
+        df_jogos = pd.read_excel(url_jogos)
+        
+        # Tratamento de colunas
+        cols_dezenas = df_jogos.columns[1:] 
         df_jogos[cols_dezenas] = df_jogos[cols_dezenas].apply(pd.to_numeric, errors='coerce')
         
         return df_part_clean, valor_arrecadado, df_jogos
         
-    except FileNotFoundError as e:
-        st.error(f"Erro: Arquivo não encontrado. ({e})")
-        return None, 0, None
     except Exception as e:
-        st.error(f"Erro ao ler planilhas: {e}")
-        return None, 0, None
+        # Se der erro (ex: internet ou url errada), tenta ler localmente como backup
+        try:
+            st.warning("Lendo arquivos locais (GitHub pode estar instável ou URLs incorretas)...")
+            df_part = pd.read_excel("participantes.xlsx", header=None)
+            valor_arrecadado = df_part.iloc[0, 1]
+            df_part_clean = df_part.iloc[1:].copy()
+            df_part_clean.columns = ["Participante", "Cotas"]
+            df_part_clean["Cotas"] = pd.to_numeric(df_part_clean["Cotas"], errors='coerce').fillna(0)
+            df_jogos = pd.read_excel("jogos.xlsx")
+            cols_dezenas = df_jogos.columns[1:]
+            df_jogos[cols_dezenas] = df_jogos[cols_dezenas].apply(pd.to_numeric, errors='coerce')
+            return df_part_clean, valor_arrecadado, df_jogos
+        except:
+            st.error(f"Erro crítico ao carregar dados: {e}")
+            return None, 0, None
 
 # Carrega os dados
 df_participantes, total_acumulado, df_jogos = load_data()
