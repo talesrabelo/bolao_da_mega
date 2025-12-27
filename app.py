@@ -1,3 +1,8 @@
+import streamlit as st
+import pandas as pd
+import requests
+from io import BytesIO
+
 # Configuração da página (Mantenha a sua configuração atual)
 st.set_page_config(
     page_title="Bolão da Mega",
