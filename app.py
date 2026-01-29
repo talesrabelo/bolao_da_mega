@@ -15,7 +15,6 @@ st.header("🍀 Painel de Acompanhamento do Bolão")
 # --- FUNÇÃO DE CARREGAMENTO DE DADOS BLINDADA ---
 @st.cache_data(ttl=60)
 def load_data():
-    # URLs do GitHub
     url_participantes = "https://raw.githubusercontent.com/talesrabelo/bolao_da_mega/main/participantes.xlsx"
     url_jogos = "https://raw.githubusercontent.com/talesrabelo/bolao_da_mega/main/jogos.xlsx"
 
@@ -29,30 +28,26 @@ def load_data():
             return None
 
     # 1. PROCESSAMENTO DE PARTICIPANTES
-    # Lemos sem cabeçalho (header=None) para pegar tudo cru
     df_part = baixar_excel(url_participantes, header_option=None)
     
     if df_part is not None:
         try:
-            # LIMPEZA CRÍTICA: Remove linhas totalmente vazias (como a linha 1 do seu Excel atual)
+            # Remove linhas totalmente vazias
             df_part = df_part.dropna(how='all').reset_index(drop=True)
             
-            # Agora a linha 0 deve ser o Total e a linha 1 em diante os participantes
-            # Verificação de segurança: Se a primeira célula for "Total", pegamos o valor ao lado
+            # Pega valor arrecadado (Linha 0, Coluna 1)
             valor_bruto = df_part.iloc[0, 1]
-            
-            # Limpeza do valor monetário (caso venha como texto "R$ ...")
             if isinstance(valor_bruto, str):
                 valor_limpo = valor_bruto.replace('R$', '').replace('.', '').replace(',', '.').strip()
                 valor_arrecadado = float(valor_limpo)
             else:
                 valor_arrecadado = float(valor_bruto)
 
-            # Os participantes são da linha 1 para baixo
+            # Separa dados dos participantes (Linha 1 em diante)
             df_part_clean = df_part.iloc[1:].copy()
             df_part_clean.columns = ["Participante", "Cotas"]
             
-            # Tratamento de tipos (Garante que Cotas sejam números e Nomes sejam texto)
+            # Tratamento de Tipos
             df_part_clean["Participante"] = df_part_clean["Participante"].astype(str)
             df_part_clean["Cotas"] = pd.to_numeric(df_part_clean["Cotas"], errors='coerce').fillna(0)
             
@@ -63,12 +58,12 @@ def load_data():
         return None, 0, None
 
     # 2. PROCESSAMENTO DE JOGOS
-    # header=0 pois seu arquivo agora tem cabeçalho "ID Jogo, Dezena 1..."
+    # header=0 pois o arquivo tem cabeçalho (ID Jogo, Dezena 1...)
     df_jogos = baixar_excel(url_jogos, header_option=0)
     
     if df_jogos is not None:
         try:
-            # Pega da segunda coluna em diante como dezenas (pula ID Jogo)
+            # Identifica colunas de dezenas (todas menos a primeira)
             cols_dezenas = df_jogos.columns[1:] 
             df_jogos[cols_dezenas] = df_jogos[cols_dezenas].apply(pd.to_numeric, errors='coerce')
         except Exception as e:
@@ -98,7 +93,6 @@ if df_participantes is not None and df_jogos is not None:
         
         st.divider()
 
-        # Simulação de Rateio
         st.subheader("💰 Simulação de Rateio")
         col_input, col_result = st.columns(2)
         with col_input:
@@ -110,10 +104,8 @@ if df_participantes is not None and df_jogos is not None:
 
         st.divider()
 
-        # Consulta Individual (CORREÇÃO DO ERRO DE ORDENAÇÃO)
         st.subheader("🕵️ Consulta Individual")
-        
-        # Removemos vazios (dropna) e garantimos que é texto (astype str) antes de ordenar
+        # Previne erro de ordenação convertendo tudo para string e removendo vazios
         lista_nomes = sorted(df_participantes["Participante"].dropna().astype(str).unique())
         
         col_busca, col_resultado_busca = st.columns(2)
@@ -134,7 +126,8 @@ if df_participantes is not None and df_jogos is not None:
         st.header("Jogos Realizados")
         st.info("Abaixo estão listados todos os jogos registrados.")
         st.info("Link dos comprovantes: https://drive.google.com/drive/folders/1ItBEVLpSoxnKTpJ0xW-aW6Zecm-DzIQW?usp=drive_link")
-        st.dataframe(df_jogos.style.format(precision=0, na_rep=""), use_container_width=True, hide_index=True)
+        # Formatação segura para números inteiros
+        st.dataframe(df_jogos.style.format("{:.0f}", na_rep=""), use_container_width=True, hide_index=True)
 
     # --- ABA 3: CONFERÊNCIA ---
     with tab3:
@@ -146,6 +139,7 @@ if df_participantes is not None and df_jogos is not None:
             cols_dezenas = df_jogos.columns[1:]
             
             def contar_acertos(row):
+                # Conta acertos ignorando vazios
                 jogo = set(row[cols_dezenas].dropna().astype(int))
                 sorteio = set(numeros_sorteados)
                 return len(jogo.intersection(sorteio))
@@ -153,6 +147,7 @@ if df_participantes is not None and df_jogos is not None:
             df_jogos['Acertos'] = df_jogos.apply(contar_acertos, axis=1)
             
             # Resumo
+            st.subheader("📊 Resumo de Premiação")
             contagem = df_jogos['Acertos'].value_counts()
             resumo_data = {acerto: contagem.get(acerto, 0) for acerto in range(6, -1, -1)}
             df_resumo = pd.DataFrame(list(resumo_data.items()), columns=["Dezenas Acertadas", "Bilhetes"])
@@ -165,13 +160,27 @@ if df_participantes is not None and df_jogos is not None:
 
             st.dataframe(df_resumo.style.apply(highlight_premios, axis=1), use_container_width=True, hide_index=True)
             
-            # Tabela Detalhada
+            # Detalhe dos Jogos (CORREÇÃO DO ERRO AQUI)
             st.subheader("Detalhe dos Jogos")
+            
             def highlight_matches(val):
-                if isinstance(val, (int, float)) and int(val) in numeros_sorteados:
-                    return 'background-color: #90EE90; color: black; font-weight: bold'
-                return ''
+                color = ''
+                # pd.notna(val) verifica se NÃO é vazio antes de tentar converter para int
+                if pd.notna(val) and isinstance(val, (int, float)):
+                    try:
+                        if int(val) in numeros_sorteados:
+                            color = 'background-color: #90EE90; color: black; font-weight: bold'
+                    except:
+                        pass
+                return color
 
-            st.dataframe(df_jogos.style.applymap(highlight_matches, subset=cols_dezenas).format(precision=0), use_container_width=True, hide_index=True)
+            # Renderização com formatação segura para evitar NaNs feios
+            st.dataframe(
+                df_jogos.style
+                .applymap(highlight_matches, subset=cols_dezenas)
+                .format("{:.0f}", subset=cols_dezenas, na_rep=""), # Remove casas decimais e vazios
+                use_container_width=True,
+                hide_index=True
+            )
 else:
-    st.warning("Aguardando carregamento dos dados...")
+    st.warning("Carregando dados... Se demorar, verifique se os arquivos estão corretos no GitHub.")
